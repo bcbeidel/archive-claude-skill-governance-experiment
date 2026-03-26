@@ -1,5 +1,8 @@
 # Claude Skill Governance Template
 
+> **Experimental** — This is an early-stage template exploring skill
+> governance patterns. Expect rough edges. Feedback welcome.
+
 A template repository for managing, reviewing, and deploying Claude Code
 skills with built-in governance. Fork this repo to get automated risk
 auditing, approval gates, and deployment pipelines for your organization's
