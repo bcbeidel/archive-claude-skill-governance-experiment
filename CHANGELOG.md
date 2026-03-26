@@ -24,7 +24,8 @@ All notable changes to the Claude Code Plugin Governance Template.
 - **Research & Context** — Distilled findings from 35 sources across
   OWASP, NIST, STRIDE/DREAD, Anthropic enterprise docs, and academic
   literature on LLM tool security
-- **Skill Audit Workflow** — GitHub Actions workflow
+- **Skill Audit Workflow** ([PR #2](https://github.com/bcbeidel/claude-automode-experiment/pull/2))
+  — GitHub Actions workflow
   (`.github/workflows/skill-audit.yml`) that automatically audits skills
   on PR changes:
   - Detects new/modified skills in PR changesets
