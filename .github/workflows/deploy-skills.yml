@@ -1,0 +1,21 @@
+name: Deploy Skills
+
+on:
+  push:
+    branches: [production]
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy Skills to Workspace
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Deploy skills via API
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: .github/scripts/deploy-skills.sh
