@@ -42,3 +42,10 @@ All notable changes to the Claude Code Plugin Governance Template.
   - Uploads via Anthropic Skills API (create new or update existing)
   - Handles create-vs-update logic by matching `display_title`
   - Credentials stored in GitHub Secrets (`ANTHROPIC_API_KEY`)
+- **Governance Documentation & README** — Complete
+  README.md rewrite as single source of governance documentation:
+  - Quickstart guide (fork → secrets → branch protection → done)
+  - Governance policy (branch model, approval tiers, audit trail)
+  - Step-by-step guides for adding skills, reviewing audits, deploying
+  - Repository structure overview
+  - Audit-skill scoring methodology reference
