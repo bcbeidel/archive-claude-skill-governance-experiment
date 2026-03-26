@@ -5,6 +5,39 @@ skills with built-in governance. Fork this repo to get automated risk
 auditing, approval gates, and deployment pipelines for your organization's
 Claude skills.
 
+```
+                          skills/
+                       (source of truth)
+                             |
+               +-------------+-------------+
+               |                           |
+          feature branch              make package
+               |                           |
+         Pull Request                  dist/*.zip
+               |                           |
+     +---------+---------+                 |
+     |                   |                 |
+ Audit Workflow    Approval Gate      claude.ai
+     |                   |          (manual upload)
+ Risk Report        LOW  = 1 review
+ (PR comment)       MED  = 2 reviews
+     |              HIGH = 3 reviews
+     |                   |
+     +--------+----------+
+              |
+     Merge to production
+              |
+    +---------+---------+
+    |                   |
+Deploy Pipeline    git tag v1.x
+    |                   |
+Claude API       GitHub Release
+(automatic)      (ZIP artifacts)
+    |
+Claude Code
+(plugin install)
+```
+
 ## Table of Contents
 
 - [Quickstart](#quickstart)
