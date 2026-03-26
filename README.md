@@ -1,4 +1,4 @@
-# Claude Code Plugin Governance Template
+# Claude Skill Governance Template
 
 A template repository for managing, reviewing, and deploying Claude Code
 skills with built-in governance. Fork this repo to get automated risk

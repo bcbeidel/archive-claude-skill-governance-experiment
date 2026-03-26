@@ -1,12 +1,12 @@
 # Changelog
 
-All notable changes to the Claude Code Plugin Governance Template.
+All notable changes to the Claude Skill Governance Template.
 
 ## [Unreleased]
 
 ### Added
 
-- **Audit Skill** ([PR #1](https://github.com/bcbeidel/claude-automode-experiment/pull/1))
+- **Audit Skill** ([PR #1](https://github.com/bcbeidel/claude-skill-governance-template/pull/1))
   — Claude Code skill that evaluates skill directories
   across 7 risk dimensions (permission scope, data exposure, prompt
   injection surface, blast radius, reversibility, semantic overlap,
@@ -24,7 +24,7 @@ All notable changes to the Claude Code Plugin Governance Template.
 - **Research & Context** — Distilled findings from 35 sources across
   OWASP, NIST, STRIDE/DREAD, Anthropic enterprise docs, and academic
   literature on LLM tool security
-- **Skill Audit Workflow** ([PR #2](https://github.com/bcbeidel/claude-automode-experiment/pull/2))
+- **Skill Audit Workflow** ([PR #2](https://github.com/bcbeidel/claude-skill-governance-template/pull/2))
   — GitHub Actions workflow
   (`.github/workflows/skill-audit.yml`) that automatically audits skills
   on PR changes:
@@ -34,7 +34,7 @@ All notable changes to the Claude Code Plugin Governance Template.
   - Enforces risk-based approval gates via commit status checks
     (LOW=1, MEDIUM=2, HIGH=3 required approvals)
   - Labels PRs with risk level (`risk:LOW`, `risk:MEDIUM`, `risk:HIGH`)
-- **Deployment Pipeline** ([PR #3](https://github.com/bcbeidel/claude-automode-experiment/pull/3))
+- **Deployment Pipeline** ([PR #3](https://github.com/bcbeidel/claude-skill-governance-template/pull/3))
   — GitHub Actions workflow
   (`.github/workflows/deploy-skills.yml`) that deploys skills to a Claude
   organization workspace on merge to `production`:
@@ -42,7 +42,7 @@ All notable changes to the Claude Code Plugin Governance Template.
   - Uploads via Anthropic Skills API (create new or update existing)
   - Handles create-vs-update logic by matching `display_title`
   - Credentials stored in GitHub Secrets (`ANTHROPIC_API_KEY`)
-- **Governance Documentation & README** ([PR #4](https://github.com/bcbeidel/claude-automode-experiment/pull/4))
+- **Governance Documentation & README** ([PR #4](https://github.com/bcbeidel/claude-skill-governance-template/pull/4))
   — Complete
   README.md rewrite as single source of governance documentation:
   - Quickstart guide (fork → secrets → branch protection → done)
