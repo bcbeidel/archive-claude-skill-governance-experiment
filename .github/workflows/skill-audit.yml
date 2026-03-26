@@ -1,0 +1,235 @@
+name: Skill Audit
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [development, production]
+  pull_request_review:
+    types: [submitted]
+
+permissions:
+  contents: read
+  pull-requests: write
+  statuses: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  audit:
+    name: Audit Changed Skills
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    outputs:
+      risk_rating: ${{ steps.aggregate.outputs.max_rating }}
+      has_changes: ${{ steps.detect.outputs.has_changes }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Detect changed skills
+        id: detect
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          CHANGED_SKILLS=$(.github/scripts/detect-skill-changes.sh)
+          if [ -z "$CHANGED_SKILLS" ]; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            echo "skills=" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+            # Store as JSON array for iteration
+            SKILLS_JSON=$(echo "$CHANGED_SKILLS" | jq -R -s 'split("\n") | map(select(. != ""))')
+            echo "skills=${SKILLS_JSON}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Post no-changes comment and set status
+        if: steps.detect.outputs.has_changes == 'false'
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          BODY="## Skill Audit Results
+
+          No skill changes detected in this PR. No audit required."
+
+          export BODY
+          .github/scripts/post-audit-comment.sh
+
+          gh api --method POST \
+            "repos/${REPO}/statuses/${SHA}" \
+            -f state="success" \
+            -f context="skill-audit/approval-gate" \
+            -f description="No skill changes — no audit required" \
+            --silent
+
+      - name: Run audit for each changed skill
+        if: steps.detect.outputs.has_changes == 'true'
+        id: audit
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          SKILLS='${{ steps.detect.outputs.skills }}'
+          REPORTS=""
+          RATINGS=""
+
+          for SKILL_PATH in $(echo "$SKILLS" | jq -r '.[]'); do
+            echo "::group::Auditing ${SKILL_PATH}"
+
+            RESULT=$(claude -p \
+              "Audit the skill at ${SKILL_PATH} following the audit-skill workflow. Read the skill directory, read the scoring rubric at skills/audit-skill/references/scoring-rubric.md, score each dimension, and generate the full report following skills/audit-skill/references/report-template.md." \
+              --output-format json \
+              --max-turns 10 \
+              --dangerously-skip-permissions \
+              --model sonnet \
+              2>/dev/null || echo '{"result": "Error: Claude Code CLI invocation failed"}')
+
+            REPORT=$(echo "$RESULT" | jq -r '.result // "Error: No result returned"')
+            RATING=$(echo "$REPORT" | grep -oP 'Overall Risk Rating: \K(LOW|MEDIUM|HIGH)' || echo "UNKNOWN")
+
+            REPORTS="${REPORTS}
+          ---
+
+          ### Audit: \`${SKILL_PATH}\`
+
+          ${REPORT}
+          "
+            RATINGS="${RATINGS} ${RATING}"
+
+            echo "::endgroup::"
+          done
+
+          # Write reports to file (avoids shell escaping issues with GITHUB_OUTPUT)
+          echo "$REPORTS" > /tmp/audit-reports.md
+          echo "$RATINGS" > /tmp/audit-ratings.txt
+
+      - name: Aggregate ratings
+        if: steps.detect.outputs.has_changes == 'true'
+        id: aggregate
+        run: |
+          RATINGS=$(cat /tmp/audit-ratings.txt)
+
+          # Determine max rating: HIGH > MEDIUM > LOW
+          if echo "$RATINGS" | grep -q "HIGH"; then
+            MAX_RATING="HIGH"
+          elif echo "$RATINGS" | grep -q "MEDIUM"; then
+            MAX_RATING="MEDIUM"
+          elif echo "$RATINGS" | grep -q "LOW"; then
+            MAX_RATING="LOW"
+          else
+            MAX_RATING="UNKNOWN"
+          fi
+
+          echo "max_rating=${MAX_RATING}" >> "$GITHUB_OUTPUT"
+
+      - name: Post audit comment
+        if: steps.detect.outputs.has_changes == 'true'
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          MAX_RATING="${{ steps.aggregate.outputs.max_rating }}"
+          REPORTS=$(cat /tmp/audit-reports.md)
+
+          # Map rating to required approvals for display
+          case "$MAX_RATING" in
+            LOW)    REQUIRED=1 ;;
+            MEDIUM) REQUIRED=2 ;;
+            HIGH)   REQUIRED=3 ;;
+            *)      REQUIRED="?" ;;
+          esac
+
+          BODY="## Skill Audit Results
+
+          **Overall Risk Level: ${MAX_RATING}**
+          **Required Approvals: ${REQUIRED}**
+
+          ${REPORTS}"
+
+          export BODY
+          .github/scripts/post-audit-comment.sh
+
+      - name: Apply risk label
+        if: steps.detect.outputs.has_changes == 'true'
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          MAX_RATING="${{ steps.aggregate.outputs.max_rating }}"
+
+          # Remove existing risk labels
+          for label in "risk:LOW" "risk:MEDIUM" "risk:HIGH"; do
+            gh api --method DELETE \
+              "repos/${REPO}/issues/${PR_NUMBER}/labels/${label}" \
+              --silent 2>/dev/null || true
+          done
+
+          # Ensure label exists (create if needed)
+          gh api --method POST \
+            "repos/${REPO}/labels" \
+            -f name="risk:${MAX_RATING}" \
+            -f color="$(case $MAX_RATING in LOW) echo '0e8a16';; MEDIUM) echo 'fbca04';; HIGH) echo 'e11d48';; *) echo 'cccccc';; esac)" \
+            --silent 2>/dev/null || true
+
+          # Apply label
+          gh api --method POST \
+            "repos/${REPO}/issues/${PR_NUMBER}/labels" \
+            --input - <<< "[\"risk:${MAX_RATING}\"]" \
+            --silent
+
+      - name: Check approvals
+        if: steps.detect.outputs.has_changes == 'true'
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+          RISK_RATING: ${{ steps.aggregate.outputs.max_rating }}
+        run: .github/scripts/check-approvals.sh
+
+  approval-gate:
+    name: Approval Gate
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request_review'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Find current risk rating from audit comment
+        id: find-rating
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          # Extract risk rating from the existing audit comment
+          COMMENT_BODY=$(gh api \
+            "repos/${REPO}/issues/${PR_NUMBER}/comments" \
+            --jq '.[] | select(.body | contains("<!-- skill-audit-results -->")) | .body' \
+            2>/dev/null | head -1 || true)
+
+          if [ -z "$COMMENT_BODY" ]; then
+            echo "No audit comment found — skipping approval gate"
+            echo "rating=NONE" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          RATING=$(echo "$COMMENT_BODY" | grep -oP 'Overall Risk Level: \K(LOW|MEDIUM|HIGH)' || echo "UNKNOWN")
+          echo "rating=${RATING}" >> "$GITHUB_OUTPUT"
+
+      - name: Re-evaluate approvals
+        if: steps.find-rating.outputs.rating != 'NONE' && steps.find-rating.outputs.rating != 'UNKNOWN'
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+          RISK_RATING: ${{ steps.find-rating.outputs.rating }}
+        run: .github/scripts/check-approvals.sh
