@@ -395,7 +395,7 @@ claude.ai requires manual upload through the admin UI. Generate ZIP files:
 ```bash
 make package
 # → dist/audit-skill.zip
-# → dist/hello-world.zip
+# → dist/your-skill.zip (one ZIP per skill in skills/)
 ```
 
 Then upload each ZIP:
