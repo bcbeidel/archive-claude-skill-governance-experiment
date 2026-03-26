@@ -2,7 +2,7 @@
 name: Audit Skill Implementation
 description: Build the audit-skill that evaluates Claude Code skills against 7 risk dimensions with deterministic scoring and governance-ready reports
 type: plan
-status: executing
+status: completed
 branch: feature/audit-skill
 related:
   - docs/designs/2026-03-25-audit-skill.design.md
