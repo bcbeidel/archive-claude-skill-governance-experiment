@@ -44,11 +44,11 @@ jobs:
           CHANGED_SKILLS=$(.github/scripts/detect-skill-changes.sh)
           if [ -z "$CHANGED_SKILLS" ]; then
             echo "has_changes=false" >> "$GITHUB_OUTPUT"
-            echo "skills=" >> "$GITHUB_OUTPUT"
+            echo "skills=[]" >> "$GITHUB_OUTPUT"
           else
             echo "has_changes=true" >> "$GITHUB_OUTPUT"
-            # Store as JSON array for iteration
-            SKILLS_JSON=$(echo "$CHANGED_SKILLS" | jq -R -s 'split("\n") | map(select(. != ""))')
+            # Store as compact JSON array (single line) for GITHUB_OUTPUT
+            SKILLS_JSON=$(echo "$CHANGED_SKILLS" | jq -R -s -c 'split("\n") | map(select(. != ""))')
             echo "skills=${SKILLS_JSON}" >> "$GITHUB_OUTPUT"
           fi
 
