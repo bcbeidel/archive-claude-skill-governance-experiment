@@ -34,7 +34,8 @@ All notable changes to the Claude Code Plugin Governance Template.
   - Enforces risk-based approval gates via commit status checks
     (LOW=1, MEDIUM=2, HIGH=3 required approvals)
   - Labels PRs with risk level (`risk:LOW`, `risk:MEDIUM`, `risk:HIGH`)
-- **Deployment Pipeline** — GitHub Actions workflow
+- **Deployment Pipeline** ([PR #3](https://github.com/bcbeidel/claude-automode-experiment/pull/3))
+  — GitHub Actions workflow
   (`.github/workflows/deploy-skills.yml`) that deploys skills to a Claude
   organization workspace on merge to `production`:
   - Discovers all skills in `skills/` directory
