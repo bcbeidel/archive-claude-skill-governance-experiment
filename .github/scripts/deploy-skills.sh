@@ -10,6 +10,9 @@
 #   SKILLS_DIR - Directory containing skills (default: skills)
 #   API_BASE   - API base URL (default: https://api.anthropic.com)
 #
+# Flags:
+#   --delete-orphans  Remove skills from API that are no longer in the repo
+#
 # For each skill directory containing SKILL.md:
 #   1. Extract name from YAML frontmatter → use as display_title
 #   2. Zip the skill directory
@@ -20,6 +23,13 @@
 set -uo pipefail
 
 : "${ANTHROPIC_API_KEY:?ANTHROPIC_API_KEY is required}"
+
+DELETE_ORPHANS=false
+for arg in "$@"; do
+  case "$arg" in
+    --delete-orphans) DELETE_ORPHANS=true ;;
+  esac
+done
 
 SKILLS_DIR="${SKILLS_DIR:-skills}"
 API_BASE="${API_BASE:-https://api.anthropic.com}"
@@ -137,6 +147,39 @@ update_skill() {
   fi
 }
 
+delete_skill() {
+  local skill_id="$1"
+  local title="$2"
+
+  # Delete all versions first (API requirement)
+  local versions
+  versions=$(curl -s "${API_BASE}/v1/skills/${skill_id}/versions?limit=100" \
+    "${API_HEADERS[@]}" 2>/dev/null \
+    | jq -r '.data[].version' 2>/dev/null || true)
+
+  for version in $versions; do
+    curl -s -X DELETE \
+      "${API_BASE}/v1/skills/${skill_id}/versions/${version}" \
+      "${API_HEADERS[@]}" --silent 2>/dev/null || true
+  done
+
+  # Delete the skill
+  local response
+  response=$(curl -s -w "\n%{http_code}" -X DELETE \
+    "${API_BASE}/v1/skills/${skill_id}" \
+    "${API_HEADERS[@]}" 2>/dev/null)
+  local http_code
+  http_code=$(echo "$response" | tail -1)
+
+  if [ "$http_code" = "200" ]; then
+    echo "  DELETED: ${title} (${skill_id})"
+    return 0
+  else
+    echo "  FAILED to delete ${title} (HTTP ${http_code})" >&2
+    return 1
+  fi
+}
+
 # --- Main ---
 
 echo "=== Skill Deployment ==="
@@ -208,12 +251,55 @@ for SKILL_DIR in $SKILL_DIRS; do
   echo ""
 done
 
+# Orphan reconciliation
+ORPHANED=0
+DELETED=0
+
+# Build list of repo skill names
+REPO_SKILL_NAMES=""
+for SKILL_DIR in $SKILL_DIRS; do
+  NAME=$(extract_name "${SKILL_DIR}/SKILL.md")
+  if [ -n "$NAME" ]; then
+    REPO_SKILL_NAMES="${REPO_SKILL_NAMES} ${NAME}"
+  fi
+done
+
+# Check each existing API skill against repo
+if [ -n "$EXISTING_SKILLS" ]; then
+  while IFS=$'\t' read -r SKILL_ID DISPLAY_TITLE; do
+    [ -z "$SKILL_ID" ] && continue
+    if ! echo "$REPO_SKILL_NAMES" | grep -qw "$DISPLAY_TITLE"; then
+      ORPHANED=$((ORPHANED + 1))
+      if [ "$DELETE_ORPHANS" = "true" ]; then
+        echo "[DELETE] ${DISPLAY_TITLE} (${SKILL_ID}) — not in repo"
+        if delete_skill "$SKILL_ID" "$DISPLAY_TITLE"; then
+          DELETED=$((DELETED + 1))
+        else
+          FAILED=$((FAILED + 1))
+        fi
+      else
+        echo "[ORPHAN] ${DISPLAY_TITLE} (${SKILL_ID}) — deployed but not in repo"
+      fi
+    fi
+  done <<< "$EXISTING_SKILLS"
+fi
+
 # Summary
+echo ""
 echo "=== Deployment Summary ==="
-echo "Created: ${CREATED}"
-echo "Updated: ${UPDATED}"
-echo "Failed:  ${FAILED}"
-echo "Skipped: ${SKIPPED}"
+echo "Created:  ${CREATED}"
+echo "Updated:  ${UPDATED}"
+echo "Failed:   ${FAILED}"
+echo "Skipped:  ${SKIPPED}"
+echo "Orphaned: ${ORPHANED}"
+if [ "$DELETE_ORPHANS" = "true" ]; then
+  echo "Deleted:  ${DELETED}"
+fi
+
+if [ "$ORPHANED" -gt 0 ] && [ "$DELETE_ORPHANS" = "false" ]; then
+  echo ""
+  echo "To remove orphaned skills, re-run with --delete-orphans"
+fi
 
 if [ "$FAILED" -gt 0 ]; then
   exit 1
