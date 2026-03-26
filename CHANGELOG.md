@@ -34,3 +34,10 @@ All notable changes to the Claude Code Plugin Governance Template.
   - Enforces risk-based approval gates via commit status checks
     (LOW=1, MEDIUM=2, HIGH=3 required approvals)
   - Labels PRs with risk level (`risk:LOW`, `risk:MEDIUM`, `risk:HIGH`)
+- **Deployment Pipeline** — GitHub Actions workflow
+  (`.github/workflows/deploy-skills.yml`) that deploys skills to a Claude
+  organization workspace on merge to `production`:
+  - Discovers all skills in `skills/` directory
+  - Uploads via Anthropic Skills API (create new or update existing)
+  - Handles create-vs-update logic by matching `display_title`
+  - Credentials stored in GitHub Secrets (`ANTHROPIC_API_KEY`)
