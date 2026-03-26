@@ -87,14 +87,22 @@ jobs:
             echo "::group::Auditing ${SKILL_PATH}"
 
             echo "Invoking Claude Code CLI for ${SKILL_PATH}..."
+            CLI_STDERR=$(mktemp)
             RESULT=$(claude -p \
               "Audit the skill at ${SKILL_PATH} following the audit-skill workflow. Read the skill directory, read the scoring rubric at skills/audit-skill/references/scoring-rubric.md, score each dimension, and generate the full report following skills/audit-skill/references/report-template.md." \
               --output-format json \
               --max-turns 10 \
               --dangerously-skip-permissions \
               --model sonnet \
-              2>&1 || echo '{"result": "Error: Claude Code CLI invocation failed"}')
+              2>"$CLI_STDERR" || echo '{"result": "Error: Claude Code CLI invocation failed"}')
             echo "CLI finished. Output length: ${#RESULT} chars"
+            if [ -s "$CLI_STDERR" ]; then
+              echo "CLI stderr:"
+              cat "$CLI_STDERR"
+            fi
+            echo "CLI stdout (first 500 chars):"
+            echo "${RESULT:0:500}"
+            rm -f "$CLI_STDERR"
 
             REPORT=$(echo "$RESULT" | jq -r '.result // "Error: No result returned"')
             RATING=$(echo "$REPORT" | grep -oP 'Overall Risk Rating: \K(LOW|MEDIUM|HIGH)' || echo "UNKNOWN")
