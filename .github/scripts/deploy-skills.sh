@@ -217,10 +217,18 @@ for SKILL_DIR in $SKILL_DIRS; do
     continue
   fi
 
+  # Sanitize skill name — strip path traversal, allow only alphanumeric + hyphens
+  SAFE_NAME=$(echo "$SKILL_NAME" | tr -cd 'a-z0-9-')
+  if [ "$SAFE_NAME" != "$SKILL_NAME" ]; then
+    echo "[SKIP] ${SKILL_DIR} — name '${SKILL_NAME}' contains invalid characters (only lowercase, numbers, hyphens allowed)"
+    SKIPPED=$((SKIPPED + 1))
+    continue
+  fi
+
   echo "[DEPLOY] ${SKILL_DIR} (name: ${SKILL_NAME})"
 
   # Zip the skill directory
-  ZIP_PATH="/tmp/${SKILL_NAME}.zip"
+  ZIP_PATH="/tmp/${SAFE_NAME}.zip"
   (cd "$(dirname "$SKILL_DIR")" && zip -r "$ZIP_PATH" "$(basename "$SKILL_DIR")" -x '*.gitkeep') > /dev/null 2>&1
 
   if [ ! -f "$ZIP_PATH" ]; then
@@ -264,21 +272,29 @@ for SKILL_DIR in $SKILL_DIRS; do
   fi
 done
 
-# Check each existing API skill against repo
+# Check each existing API skill against repo — first pass: count orphans
 if [ -n "$EXISTING_SKILLS" ]; then
   while IFS=$'\t' read -r SKILL_ID DISPLAY_TITLE; do
     [ -z "$SKILL_ID" ] && continue
     if ! echo "$REPO_SKILL_NAMES" | grep -qw "$DISPLAY_TITLE"; then
       ORPHANED=$((ORPHANED + 1))
-      if [ "$DELETE_ORPHANS" = "true" ]; then
-        echo "[DELETE] ${DISPLAY_TITLE} (${SKILL_ID}) — not in repo"
-        if delete_skill "$SKILL_ID" "$DISPLAY_TITLE"; then
-          DELETED=$((DELETED + 1))
-        else
-          FAILED=$((FAILED + 1))
-        fi
+      echo "[ORPHAN] ${DISPLAY_TITLE} (${SKILL_ID}) — deployed but not in repo"
+    fi
+  done <<< "$EXISTING_SKILLS"
+fi
+
+# Second pass: delete orphans if flag is set and orphans were found
+if [ "$DELETE_ORPHANS" = "true" ] && [ "$ORPHANED" -gt 0 ]; then
+  echo ""
+  echo "About to delete ${ORPHANED} orphaned skill(s) from the API."
+  while IFS=$'\t' read -r SKILL_ID DISPLAY_TITLE; do
+    [ -z "$SKILL_ID" ] && continue
+    if ! echo "$REPO_SKILL_NAMES" | grep -qw "$DISPLAY_TITLE"; then
+      echo "[DELETE] ${DISPLAY_TITLE} (${SKILL_ID})"
+      if delete_skill "$SKILL_ID" "$DISPLAY_TITLE"; then
+        DELETED=$((DELETED + 1))
       else
-        echo "[ORPHAN] ${DISPLAY_TITLE} (${SKILL_ID}) — deployed but not in repo"
+        FAILED=$((FAILED + 1))
       fi
     fi
   done <<< "$EXISTING_SKILLS"
