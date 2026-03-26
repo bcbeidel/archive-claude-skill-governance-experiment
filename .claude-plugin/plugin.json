@@ -1,0 +1,13 @@
+{
+  "name": "skill-governance",
+  "description": "Governance template for managing, auditing, and deploying Claude Code skills with risk-based approval gates",
+  "version": "1.0.0",
+  "author": {
+    "name": "Your Organization"
+  },
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "license": "MIT"
+}

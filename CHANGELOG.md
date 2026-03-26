@@ -50,3 +50,10 @@ All notable changes to the Claude Skill Governance Template.
   - Step-by-step guides for adding skills, reviewing audits, deploying
   - Repository structure overview
   - Audit-skill scoring methodology reference
+- **Multi-Surface Plugin** — Restructured repo as a
+  Claude Code plugin with deployment to all three surfaces:
+  - `.claude-plugin/plugin.json` for plugin marketplace install
+  - `Makefile` with `make package` to generate ZIPs for claude.ai upload
+  - `.github/workflows/release.yml` for tag-triggered GitHub Releases
+  - Orphan reconciliation in deploy script (`--delete-orphans` flag)
+  - README updated with distribution and releasing guides

@@ -13,6 +13,8 @@ Claude skills.
 - [Adding a New Skill](#adding-a-new-skill)
 - [Reviewing an Audit Report](#reviewing-an-audit-report)
 - [Deploying to Production](#deploying-to-production)
+- [Distribution](#distribution)
+- [Releasing](#releasing)
 - [Audit-Skill Details](#audit-skill-details)
 
 ---
@@ -79,6 +81,8 @@ modifies a skill triggers the workflow.
 ## Repository Structure
 
 ```
+.claude-plugin/
+  plugin.json                 # Plugin manifest (name, version, description)
 skills/
   audit-skill/                # Built-in risk audit skill
     SKILL.md                  # Skill definition (evaluation workflow)
@@ -89,6 +93,7 @@ skills/
   workflows/
     skill-audit.yml           # PR-triggered audit workflow
     deploy-skills.yml         # Production deployment workflow
+    release.yml               # Tag-triggered release with ZIP artifacts
   scripts/
     detect-skill-changes.sh   # Detects changed skills in a PR
     post-audit-comment.sh     # Posts/updates audit report PR comments
@@ -104,6 +109,7 @@ docs/
   context/                    # Distilled context from research
   designs/                    # Design specifications
   plans/                      # Implementation plans
+Makefile                      # make package — generates ZIPs for claude.ai
 CHANGELOG.md                  # Change history with PR links
 ```
 
@@ -317,6 +323,85 @@ On merge to `production`, the `deploy-skills.yml` workflow automatically:
 
 Check the workflow run in **Actions > Deploy Skills** to see which skills
 were created, updated, or failed.
+
+---
+
+## Distribution
+
+Skills in this repo deploy to three surfaces. Each uses the same `skills/`
+directory as the source of truth.
+
+### Claude Code (Plugin Install)
+
+This repo is structured as a Claude Code plugin. Team members install it
+from your plugin marketplace:
+
+```
+/plugin install <your-marketplace-url>
+```
+
+Skills auto-discover on install. Updates via `/plugin update`.
+
+### Claude API (Automatic)
+
+On merge to `production`, the `deploy-skills.yml` workflow automatically
+uploads all skills to your Claude API workspace via the Skills API. These
+skills are available in Messages API calls with `container.skills`.
+
+The deploy script detects orphaned skills (deployed but removed from repo)
+and warns in the summary. To remove orphans:
+
+```bash
+ANTHROPIC_API_KEY=<key> .github/scripts/deploy-skills.sh --delete-orphans
+```
+
+### claude.ai (Manual ZIP Upload)
+
+claude.ai requires manual upload through the admin UI. Generate ZIP files:
+
+```bash
+make package
+# → dist/audit-skill.zip
+# → dist/hello-world.zip
+```
+
+Then upload each ZIP:
+1. Go to **Organization Settings > Skills > + Add**
+2. Select the ZIP file
+3. Set default state (enabled/disabled)
+
+ZIP files are also attached to GitHub Releases for download.
+
+> **Note:** Custom Skills on claude.ai do not sync with the API or Claude
+> Code. Each surface must be updated independently. This is an Anthropic
+> platform limitation.
+
+---
+
+## Releasing
+
+### Create a Release
+
+1. Update the version in `.claude-plugin/plugin.json`
+2. Commit and merge to `production`
+3. Tag and push:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+4. The `release.yml` workflow creates a GitHub Release with:
+   - Skill ZIP files attached as downloadable assets
+   - Auto-generated release notes
+   - Instructions for each deployment surface
+
+### Version Strategy
+
+- Use [semantic versioning](https://semver.org/) in `.claude-plugin/plugin.json`
+- Bump **patch** for skill content changes (rubric updates, report tweaks)
+- Bump **minor** for new skills added
+- Bump **major** for breaking changes (scoring methodology changes, API changes)
 
 ---
 

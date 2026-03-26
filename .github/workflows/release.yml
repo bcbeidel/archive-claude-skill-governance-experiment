@@ -1,0 +1,48 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Create Release with Skill ZIPs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Package skills
+        run: make package
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          SKILL_COUNT=$(ls dist/*.zip 2>/dev/null | wc -l | tr -d ' ')
+
+          gh release create "$TAG" dist/*.zip \
+            --title "Release ${TAG}" \
+            --generate-notes \
+            --notes "$(cat <<EOF
+
+          ## Skill Packages
+
+          ${SKILL_COUNT} skill ZIP files attached to this release.
+
+          ### For claude.ai deployment
+          1. Download the ZIP files below
+          2. Go to **Organization Settings > Skills > + Add**
+          3. Upload each ZIP file
+
+          ### For Claude API deployment
+          Merge to \`production\` branch — the deploy workflow handles this automatically.
+
+          ### For Claude Code
+          Install as a plugin: \`/plugin install <marketplace-url>\`
+          EOF
+          )"
