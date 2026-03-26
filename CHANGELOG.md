@@ -6,7 +6,8 @@ All notable changes to the Claude Code Plugin Governance Template.
 
 ### Added
 
-- **Audit Skill** — Claude Code skill that evaluates skill directories
+- **Audit Skill** ([PR #1](https://github.com/bcbeidel/claude-automode-experiment/pull/1))
+  — Claude Code skill that evaluates skill directories
   across 7 risk dimensions (permission scope, data exposure, prompt
   injection surface, blast radius, reversibility, semantic overlap,
   dependency risk) and produces governance-ready risk reports with
