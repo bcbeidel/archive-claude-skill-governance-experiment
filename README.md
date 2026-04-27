@@ -1,4 +1,4 @@
-# Claude Skill Governance Template (Archived)
+# Claude Skill Governance Experiment (Archived)
 
 > **Archived 2026-04-27.** Point-in-time experiment. The repo is read-only;
 > contents are preserved below as a reference snapshot. See *What to use
