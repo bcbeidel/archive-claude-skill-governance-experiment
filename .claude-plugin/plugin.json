@@ -1,7 +1,7 @@
 {
-  "name": "skill-governance",
-  "description": "Governance template for managing, auditing, and deploying Claude Code skills with risk-based approval gates",
-  "version": "1.0.0",
+  "name": "skill-governance-archive",
+  "description": "Archived 2026-04-27. Point-in-time experiment in Claude skill governance. See README for lessons learned and recommended replacements (Cisco skill-scanner, plugin distribution, Anthropic enterprise controls).",
+  "version": "0.1.0-archived",
   "author": {
     "name": "Your Organization"
   },

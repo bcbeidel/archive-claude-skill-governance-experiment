@@ -2,6 +2,10 @@
 
 All notable changes to the Claude Skill Governance Template.
 
+## [Archived] - 2026-04-27
+
+Repository archived as a point-in-time experiment. README collapsed to a post-mortem with lessons learned; recommended replacements are Cisco's [`skill-scanner`](https://github.com/cisco-ai-defense/skill-scanner) for static analysis, plugin-based distribution, and Anthropic's enterprise skill controls. No further changes planned.
+
 ## [0.1.0] - 2026-03-26
 
 Initial experimental release.
